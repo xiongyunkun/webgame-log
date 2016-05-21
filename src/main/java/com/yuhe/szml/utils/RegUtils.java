@@ -17,7 +17,7 @@ public class RegUtils {
 		String pStr = "[),]"+ key + "=(.*?)(,|$)";
 		Pattern p = Pattern.compile(pStr);
 		Matcher m = p.matcher(logLine);
-		while(m.find()){
+		if(m.find()){
 			value = m.group(1);
 		}
 		return value;
@@ -32,7 +32,7 @@ public class RegUtils {
 		Pattern p = Pattern.compile(pStr);
 		Matcher m = p.matcher(logLine);
 		String time = "";
-		while(m.find()){
+		if(m.find()){
 			time = m.group(1);
 		}
 		return time;

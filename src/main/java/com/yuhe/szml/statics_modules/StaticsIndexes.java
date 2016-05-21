@@ -39,6 +39,7 @@ public class StaticsIndexes {
 		indexMap.put("teaminst", new TeamInstLog()); //诸神黄昏日志
 		indexMap.put("petsoul", new PetSoulLog()); //宝石日志
 		indexMap.put("endlessbattle", new EndlessBattleLog()); //方舟之战日志
+		indexMap.put("pay_order", new PayOrder()); //充值日志
 	}
 	/**
 	 * 返回统计指标的Map

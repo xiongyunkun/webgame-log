@@ -9,6 +9,7 @@ F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\LoginLog.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\ChatLog.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\PetSoulLog.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\ActLog.java
+F:\workspace_java\szml\src\main\java\com\yuhe\szml\db\PayDB.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\ExpLog.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\MoneyLog.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\StaticsTopology.java
@@ -18,6 +19,7 @@ F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\TaskLog.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\db\UserInfoDB.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\BanChatLog.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\MountLevelLog.java
+F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\PayOrder.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\GodDoorLog.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\db\log\CommonDB.java
 F:\workspace_java\szml\src\main\java\com\yuhe\szml\statics_modules\GoldLog.java

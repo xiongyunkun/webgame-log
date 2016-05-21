@@ -33,6 +33,9 @@ public class PetSoulLog extends AbstractStaticsModule {
 					map.put("Time", time);
 					for (String col : LOG_COLS) {
 						String value = RegUtils.getLogValue(message, col, "");
+						if(col.equals("Grid") && value.equals("")){
+							value = "1"; //设置默认值
+						}
 						map.put(col, value);
 					}
 					String platformID = hostMap.get(hostID);

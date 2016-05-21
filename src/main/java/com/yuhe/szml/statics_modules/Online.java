@@ -1,6 +1,9 @@
 package com.yuhe.szml.statics_modules;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -46,6 +49,52 @@ public class Online extends AbstractStaticsModule {
 			List<Map<String, String>> platformResult = platformResults.get(platformID);
 			OnlineDB db = new OnlineDB();
 			db.batchInsert(platformID, platformResult);
+			for(Map<String, String> result: platformResult){
+				String time = result.get("Time");
+				String hostID = result.get("HostID");
+				//检查5分钟前数据是否正常
+				checkPreNumErro(platformID, hostID, time);
+			}
+		}
+		return true;
+	}
+	
+	/**
+	 * 如果前10分钟有数据但是前5分钟没有数据，就认为前5分钟数据
+	 * 有问题，直接用前10分钟的数据记录成前5分钟的数据
+	 * @param platformID
+	 * @param hostID
+	 * @param time
+	 * @return
+	 */
+	public boolean checkPreNumErro(String platformID, String hostID, String time){
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		OnlineDB db = new OnlineDB();
+		try {
+			Date date = sdf.parse(time);
+			long timestamp = date.getTime();
+			String pre5Time = sdf.format(new Date(timestamp - 300000));
+			String pre10Time = sdf.format(new Date(timestamp - 600000));
+			Map<String, String> options = new HashMap<String, String>();
+			options.put("HostID", hostID);
+			options.put("StartTime", pre10Time);
+			options.put("EndTime", time);
+			Map<String, Integer> numMap = db.queryNum(platformID, options);
+			if(numMap.containsKey(pre10Time) && !numMap.containsKey(pre5Time)){
+				//如果前10分钟有数据而前5分钟没有则修复前5分钟数据
+				int pre10Num = numMap.get(pre10Time);
+				Map<String, String> map = new HashMap<String, String>();
+				map.put("PlatformID", platformID);
+				map.put("HostID", hostID);
+				map.put("Time", pre5Time);
+				map.put("OnlineNum", Integer.toString(pre10Num));
+				List<Map<String, String>> platformResult = new ArrayList<Map<String, String>>();
+				platformResult.add(map);
+				db.batchInsert(platformID, platformResult);
+			}
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		return true;
 	}

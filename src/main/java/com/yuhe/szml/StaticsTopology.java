@@ -20,7 +20,7 @@ public class StaticsTopology {
 			StormSubmitter.submitTopology(args[0], conf, builder.createTopology());
 		} else {
 			conf.setDebug(true);
-			conf.setMaxTaskParallelism(3);
+			conf.setMaxTaskParallelism(1);
 			LocalCluster cluster = new LocalCluster();
 			cluster.submitTopology("oss-statics", conf, builder.createTopology());
 			Thread.sleep(10000);

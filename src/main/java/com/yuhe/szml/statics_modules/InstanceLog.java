@@ -36,6 +36,8 @@ public class InstanceLog extends AbstractStaticsModule {
 						String value = RegUtils.getLogValue(message, col, "");
 						if(col.equals("Result") && value.equals("")){
 							value = "-1"; //默认是-1
+						}else if(col.equals("InstanceName") && value.length()>20){
+							value = value.substring(0, 20); 
 						}
 						map.put(col, value);
 					}

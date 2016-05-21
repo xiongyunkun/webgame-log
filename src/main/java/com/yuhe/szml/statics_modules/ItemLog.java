@@ -40,6 +40,8 @@ public class ItemLog extends AbstractStaticsModule {
 								value = "1";
 							else
 								value = "2";
+						}else if(col.equals("ItemName") && value.length()>32){
+							value = value.substring(0, 32);
 						}
 						map.put(col, value);
 					}
