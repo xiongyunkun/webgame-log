@@ -5,6 +5,6 @@ import java.util.Map;
 
 public abstract class AbstractStaticsModule {
 	
-	public abstract boolean execute(List<String> logList, Map<String,String> hostMap);
+	public abstract boolean execute(Map<String, List<Map<String, String>>> platformResults);
 
 }

@@ -9,12 +9,11 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseBasicBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
+import org.apache.storm.tuple.Values;
 
 import com.yuhe.szml.db.ServerDB;
-import com.yuhe.szml.statics_modules.AbstractStaticsModule;
-import com.yuhe.szml.statics_modules.StaticsIndexes;
-
-
+import com.yuhe.szml.log_modules.AbstractLogModule;
+import com.yuhe.szml.log_modules.LogIndexes;
 
 public class LogBolt extends BaseBasicBolt {
 
@@ -29,22 +28,27 @@ public class LogBolt extends BaseBasicBolt {
 	 */
 	@SuppressWarnings("unchecked")
 	public void execute(Tuple input, BasicOutputCollector collector) {
-		String staticsIndex = input.getString(0);
+		Map<String, List<Map<String, String>>> platformResults = null;
+		String staticsIndex = null;
+		String logIndex = input.getString(0);
 		List<String> logList = (List<String>) input.getValue(1);
 		if (logList.size() > 0) {
 			// 根据taticsIndex用对应的处理模块处理
-			Map<String, AbstractStaticsModule> indexMap = StaticsIndexes.GetIndexMap();
-			AbstractStaticsModule module = indexMap.get(staticsIndex);
+			Map<String, AbstractLogModule> indexMap = LogIndexes.GetIndexMap();
+			AbstractLogModule module = indexMap.get(logIndex);
 			if (module != null) {
 				Map<String, String> hostMap = ServerDB.getStaticsServers();
-				module.execute(logList, hostMap);
+				platformResults = module.execute(logList, hostMap);
+				staticsIndex = module.getStaticsIndex();
 			}
 		}
-//		collector.emit(new Values(staticsIndex));
+		if (staticsIndex != null && platformResults != null && platformResults.size() > 0) {
+			collector.emit(new Values(staticsIndex, platformResults));
+		}
 	}
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields("log"));
+		declarer.declare(new Fields("staticsIndex", "logValues"));
 
 	}
 

@@ -1,15 +1,18 @@
 package com.yuhe.szml.db.log;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 
 import com.yuhe.szml.db.DBManager;
-import com.yuhe.szml.utils.DateUtils;
+import com.yuhe.szml.utils.DateUtils2;
 
 public class CommonDB {
 	/**
@@ -29,8 +32,9 @@ public class CommonDB {
 			String dateStr = null;
 			for (String col : cols) {
 				String value = result.get(col);
+				value = StringEscapeUtils.escapeSql(value);
 				if (col.equals("Time")) {
-					dateStr = DateUtils.getSqlDate(value);
+					dateStr = DateUtils2.getSqlDate(value);
 				}
 				values.add(value);
 			}
@@ -71,6 +75,7 @@ public class CommonDB {
 			List<String> values = new ArrayList<String>();
 			for (String col : cols) {
 				String value = result.get(col);
+				value = StringEscapeUtils.escapeSql(value);
 				values.add(value);
 			}
 			sqlValues.add(StringUtils.join(values, "','"));
@@ -81,5 +86,19 @@ public class CommonDB {
 				.append("')");
 		DBManager.execute(sb.toString());
 		return true;
+	}
+	/**
+	 * 查询数据库返回结果
+	 * @param tblName
+	 * @param options
+	 * @return
+	 */
+	public static ResultSet query(Connection conn, String tblName, List<String> options){
+		String sql = "select * from " + tblName + " where 1 = 1 ";
+		if(options.size() > 0){
+			sql += " and " + StringUtils.join(options, " and ");
+		}
+		ResultSet results = DBManager.query(conn, sql);
+		return results;
 	}
 }

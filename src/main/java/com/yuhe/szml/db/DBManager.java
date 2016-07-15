@@ -50,6 +50,7 @@ public class DBManager {
 		try {
 			conn = dataSource.getConnection();
 		} catch (SQLException e) {
+			e.printStackTrace();
 			log.error("获取数据库连接失败：" + e);
 		}
 		return conn;
@@ -97,11 +98,11 @@ public class DBManager {
 		try {
 			Statement smst = conn.createStatement();
 			smst.executeUpdate(sql);
-			
+
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}finally{
+		} finally {
 			closeConn(conn);
 		}
 		return flag;

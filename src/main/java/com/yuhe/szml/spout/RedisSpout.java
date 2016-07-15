@@ -14,8 +14,8 @@ import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
 
-import com.yuhe.szml.statics_modules.AbstractStaticsModule;
-import com.yuhe.szml.statics_modules.StaticsIndexes;
+import com.yuhe.szml.log_modules.AbstractLogModule;
+import com.yuhe.szml.log_modules.LogIndexes;
 
 
 public class RedisSpout extends BaseRichSpout {
@@ -23,19 +23,20 @@ public class RedisSpout extends BaseRichSpout {
 	private SpoutOutputCollector collector;
 	public static Logger logger = Logger.getLogger(RedisSpout.class);
 	//线上环境用这个，切记
-	private static Jedis jedis = new Jedis("127.0.0.1", 16379){ 
-		{
-			auth("FfsOI89KL");
-		}
-	};
+//	private static Jedis jedis = new Jedis("127.0.0.1", 16379){ 
+//		{
+//			auth("FfsOI89KL");
+//		}
+//	};
 	//测试环境用这个
-//	private static Jedis jedis = new Jedis("192.168.1.98", 6379);
+	private static Jedis jedis = new Jedis("192.168.1.98", 6379);
 	
 	// lua脚本，用于在redis中批量获取队列内容
 	private String LUA_SCRIPT = "local Result = {} local Length = redis.call('LLEN',KEYS[1]) "
 			+ "for Index = 0, Length-1 do local Value = redis.call('LPOP',KEYS[1]) if Value then "
 			+ "table.insert(Result, Value) end end return Result";
 
+	@SuppressWarnings("rawtypes")
 	public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
 		this.collector = collector;
 	}
@@ -43,7 +44,7 @@ public class RedisSpout extends BaseRichSpout {
 	@SuppressWarnings("unchecked")
 	public void nextTuple() {
 		// get data from redis
-		Map<String, AbstractStaticsModule> indexMap = StaticsIndexes.GetIndexMap();
+		Map<String, AbstractLogModule> indexMap = LogIndexes.GetIndexMap();
 		Iterator<String> it = indexMap.keySet().iterator();
 		while (it.hasNext()) {
 			String staticsIndex = (String) it.next();
