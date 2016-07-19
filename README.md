@@ -29,9 +29,9 @@ RedisSpout.java:对应redis的spout类
 	
 StaticsTopology.java：入口类，配置相关spout和bolt的顺序以及执行线程数
 
-部署：
+部署：<br>
 与storm采用maven打包部署一样，将打包部署好的jar包之间部署至服务器，执行命令：
 bin/storm jar szml-1.0-jar-with-dependencies.jar com.yuhe.szml.StaticsTopology oss-statics
 
-停止命令：
+停止命令：<br>
 bin/storm kill oss-statics
