@@ -1,11 +1,12 @@
 package com.yuhe.szml.log_modules;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.commons.lang.time.DateFormatUtils;
 
 import com.yuhe.szml.db.log.CommonDB;
 import com.yuhe.szml.utils.RegUtils;
@@ -33,7 +34,6 @@ public class BanChatLog extends AbstractLogModule {
 	@Override
 	public Map<String, List<Map<String, String>>> execute(List<String> logList, Map<String, String> hostMap) {
 		Map<String, List<Map<String, String>>> platformResults = new HashMap<String, List<Map<String, String>>>();
-		SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 		for (String logStr : logList) {
 			JSONObject json = JSONObject.fromObject(logStr);
 			if (json != null) {
@@ -48,11 +48,11 @@ public class BanChatLog extends AbstractLogModule {
 						String value = RegUtils.getLogValue(message, col, "");
 						try {
 							if (col.equals("StartTime")) {
-								String timeStr = timeFormat.format(Long.parseLong(value + "000"));
+								String timeStr = DateFormatUtils.format(Long.parseLong(value + "000"), "yyyy-MM-dd HH:mm:ss");
 								map.put("BanStartTime", timeStr);
 							} else if (col.equals("BanTime")) {
 								long endTime = Long.parseLong(value) + Long.parseLong(map.get("StartTime"));
-								String timeStr = timeFormat.format(endTime * 1000);
+								String timeStr = DateFormatUtils.format(endTime * 1000, "yyyy-MM-dd HH:mm:ss");
 								map.put("BanEndTime", timeStr);
 							}
 						} catch (Exception e) {

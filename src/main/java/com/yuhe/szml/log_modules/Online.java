@@ -1,13 +1,15 @@
 package com.yuhe.szml.log_modules;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.commons.lang.time.DateFormatUtils;
+import org.apache.commons.lang.time.DateUtils;
 
 import com.yuhe.szml.db.statics.OnlineDB;
 import com.yuhe.szml.utils.DateUtils2;
@@ -74,13 +76,14 @@ public class Online extends AbstractLogModule {
 	 * @return
 	 */
 	public boolean checkPreNumErro(String platformID, String hostID, String time){
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		String timeFormat = "yyyy-MM-dd HH:mm:ss";
+		String[] parsePatterns = { timeFormat };
 		OnlineDB db = new OnlineDB();
 		try {
-			Date date = sdf.parse(time);
+			Date date = DateUtils.parseDate(time, parsePatterns);
 			long timestamp = date.getTime();
-			String pre5Time = sdf.format(new Date(timestamp - 300000));
-			String pre10Time = sdf.format(new Date(timestamp - 600000));
+			String pre5Time = DateFormatUtils.format(timestamp - 300000, timeFormat);
+			String pre10Time = DateFormatUtils.format(timestamp - 600000, timeFormat);
 			Map<String, String> options = new HashMap<String, String>();
 			options.put("HostID", hostID);
 			options.put("StartTime", pre10Time);

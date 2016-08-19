@@ -1,14 +1,13 @@
 package com.yuhe.szml.db.statics;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateFormatUtils;
 
 import com.yuhe.szml.db.DBManager;
 
@@ -28,8 +27,7 @@ public class UserInfoDB {
 	 */
 	public static boolean batchInsert(String platformID, List<Map<String, String>> results) {
 		String[] insertCols = { "HostID", "Uid", "Urs", "Name", "Time", "Sex", "LastUpdateTime" };
-		SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		String timeStr = timeFormat.format(new Date());
+		String timeStr = DateFormatUtils.format(System.currentTimeMillis(), "yyyy-MM-dd HH:mm:ss");
 		List<String> sqlValues = new ArrayList<String>();
 		for (Map<String, String> result : results) {
 			List<String> values = new ArrayList<String>();
@@ -71,8 +69,7 @@ public class UserInfoDB {
 		colMap.put("LastLogoutTime", "Time");
 		colMap.put("Level", "Lv");
 		colMap.put("TotalOnlineTime", "OnTime");
-		SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		String timeStr = timeFormat.format(new Date());
+		String timeStr = DateFormatUtils.format(System.currentTimeMillis(), "yyyy-MM-dd HH:mm:ss");
 		Map<String, String> defaultValues = new HashMap<String, String>();
 		defaultValues.put("OnlineFlag", "0");
 		defaultValues.put("LastUpdateTime", timeStr);

@@ -19,6 +19,7 @@ public class StaticsTopology {
 		builder.setBolt("log", new LogBolt(), 10).shuffleGrouping("spout");
 		builder.setBolt("statics", new StaticsBolt(), 10).fieldsGrouping("log", new Fields("staticsIndex"));
 		Config conf = new Config();
+		
 		if (args != null && args.length > 0) {
 			conf.setNumWorkers(1);
 			StormSubmitter.submitTopology(args[0], conf, builder.createTopology());

@@ -17,4 +17,10 @@ public class PayStatics extends AbstractStaticsModule {
 		return true;
 	}
 
+	@Override
+	public boolean cronExecute() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
 }

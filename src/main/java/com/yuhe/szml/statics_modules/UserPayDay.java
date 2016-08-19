@@ -254,4 +254,10 @@ public class UserPayDay extends AbstractStaticsModule {
 		return frequencyID;
 	}
 
+	@Override
+	public boolean cronExecute() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
 }

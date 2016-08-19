@@ -41,6 +41,7 @@ com\yuhe\szml\log_modules\PetEquipLog.class
 com\yuhe\szml\log_modules\GoldLog$1.class
 com\yuhe\szml\bolt\LogBolt.class
 com\yuhe\szml\statics_modules\PayDay.class
+com\yuhe\szml\utils\FuncUtils.class
 com\yuhe\szml\db\log\AbstractDB.class
 com\yuhe\szml\db\statics\FightingRankDB.class
 com\yuhe\szml\db\statics\PayDB.class

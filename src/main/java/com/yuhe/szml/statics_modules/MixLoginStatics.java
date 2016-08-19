@@ -15,4 +15,10 @@ public class MixLoginStatics extends AbstractStaticsModule {
 		return true;
 	}
 
+	@Override
+	public boolean cronExecute() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
 }

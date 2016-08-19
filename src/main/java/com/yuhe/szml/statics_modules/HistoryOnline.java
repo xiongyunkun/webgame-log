@@ -13,8 +13,10 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateFormatUtils;
 
 import com.yuhe.szml.db.DBManager;
+import com.yuhe.szml.db.ServerDB;
 import com.yuhe.szml.db.log.CommonDB;
 import com.yuhe.szml.db.statics.HistoryOnlineDB;
 
@@ -145,6 +147,36 @@ public class HistoryOnline extends AbstractStaticsModule {
 		long diff = nowTime - benTime;
 		long floor = Math.floorDiv(diff, 300000);
 		return floor;
+	}
+
+	@Override
+	public boolean cronExecute() {
+		synchronized (StaticsNumMap) {
+			String today = DateFormatUtils.format(System.currentTimeMillis(), "yyyy-MM-dd");
+			Map<String, String> hostMap = ServerDB.getStaticsServers();
+			Iterator<String> hIt = hostMap.keySet().iterator();
+			while (hIt.hasNext()) {
+				String hostID = hIt.next();
+				String platformID = hostMap.get(hostID);
+				Map<String, Map<String, Integer>> hostResult = StaticsNumMap.get(hostID);
+				if (hostResult == null) {
+					hostResult = new HashMap<String, Map<String, Integer>>();
+					StaticsNumMap.put(hostID, hostResult);
+				}
+				Map<String, Integer> dateResult = hostResult.get(today);
+				if (dateResult == null) {
+					hostResult = loadFromDB(platformID, hostID, today);
+					dateResult = hostResult.get(today);
+					int totalOnline = dateResult.get("TotalOnline");
+					int maxOnline = dateResult.get("MaxOnline");
+					int minOnline = dateResult.get("MinOnline");
+					long period = getPeriod();
+					int aveNum = (int) Math.floorDiv(totalOnline, period);
+					HistoryOnlineDB.batchInsert(platformID, hostID, today, maxOnline, aveNum, minOnline);
+				}
+			}
+		}
+		return true;
 	}
 
 }

@@ -11,13 +11,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateFormatUtils;
 
 import com.yuhe.szml.db.DBManager;
+import com.yuhe.szml.db.ServerDB;
 import com.yuhe.szml.db.log.CommonDB;
 import com.yuhe.szml.db.statics.GoldDB;
 import com.yuhe.szml.db.statics.PayDayStaticsDB;
 import com.yuhe.szml.utils.DateUtils2;
+import com.yuhe.szml.utils.FuncUtils;
 
 /**
  * 钻石统计
@@ -26,15 +30,20 @@ import com.yuhe.szml.utils.DateUtils2;
  *
  */
 public class GoldStatics extends AbstractStaticsModule {
-	// 记录钻石消费信息
-	// 格式:Map<HostID, Map<Date, Map<GoldType, Map<StaticsType, Map<Channel,
-	// Set<Uid>>>>>
+	// 记录Uid
+	// 格式:Map<HostID, Map<Date, Map<GoldType, Map<StaticsType,
+	// Map<Channel,Set<Uid>>>>>
 	private Map<String, Map<String, Map<String, Map<String, Map<String, Set<String>>>>>> UidSets = new HashMap<String, Map<String, Map<String, Map<String, Map<String, Set<String>>>>>>();
-	
-	//记录钻石总计信息
-	//格式：<HostID, <Date, <StaticsType, Number>>>
+
+	// 记录钻石总计信息
+	// 格式：<HostID, <Date, <StaticsType, Number>>>
 	private Map<String, Map<String, Map<String, Integer>>> DayNumMap = new HashMap<String, Map<String, Map<String, Integer>>>();
-		
+
+	// 记录需要入库的统计结果，入库完毕后这些统计结果会被清空，格式：
+	// <platformID, HostID,<Date, <reason,<goldType, <staticsType,values>>>>>>
+	@SuppressWarnings("rawtypes")
+	private Map<String, Map> PlatformStatics = new HashMap<String, Map>();
+
 	@Override
 	public boolean execute(Map<String, List<Map<String, String>>> platformResults) {
 		Iterator<String> pIt = platformResults.keySet().iterator();
@@ -82,8 +91,8 @@ public class GoldStatics extends AbstractStaticsModule {
 				values.put("Value", changes);
 				values.put("Uids", StringUtils.join(uids, "','"));
 				values.put("consumeNum", "1");
-				GoldDB.batchInsert(platformID, hostID, date, reason, goldType, staticsType, values);
-				staticsTotalGold(platformID, hostID, date, goldType, staticsType, Integer.parseInt(values.get("Value")));
+				insertPlatformStatics(platformID, hostID, date, reason, goldType, staticsType, values);
+
 			}
 		}
 		return true;
@@ -141,8 +150,10 @@ public class GoldStatics extends AbstractStaticsModule {
 		UidSets.put(hostID, dateResults);
 		return dateResults;
 	}
+
 	/**
 	 * 将钻石统计数据更新到tblPayDayStatics表中
+	 * 
 	 * @param platformID
 	 * @param hostID
 	 * @param date
@@ -150,18 +161,18 @@ public class GoldStatics extends AbstractStaticsModule {
 	 * @param staticsType
 	 * @param goldNum
 	 */
-	private void staticsTotalGold(String platformID, String hostID, String date, String goldType, String staticsType,
+	private void updateTotalGold(String platformID, String hostID, String date, String goldType, String staticsType,
 			int goldNum) {
 		Map<String, Map<String, Integer>> hostTotalMap = DayNumMap.get(hostID);
-		if(hostTotalMap == null){
+		if (hostTotalMap == null) {
 			hostTotalMap = new HashMap<String, Map<String, Integer>>();
 			DayNumMap.put(hostID, hostTotalMap);
 		}
 		Map<String, Integer> dateMap = hostTotalMap.get(date);
-		if(dateMap == null){
+		if (dateMap == null) {
 			String yesterday = DateUtils2.getOverDate(date, -1);
 			Map<String, Integer> yesterdayMap = hostTotalMap.get(yesterday);
-			if(yesterdayMap == null){
+			if (yesterdayMap == null) {
 				yesterdayMap = loadDatePayInfoFromDB(platformID, hostID, yesterday);
 			}
 			dateMap = new HashMap<String, Integer>();
@@ -176,27 +187,27 @@ public class GoldStatics extends AbstractStaticsModule {
 		}
 		String goldStr = null;
 		String staticsStr = null;
-		if(goldType.equals("1")){
+		if (goldType.equals("1")) {
 			goldStr = "Gold";
-		}else{
+		} else {
 			goldStr = "CreditGold";
 		}
-		if(staticsType.equals("1")){
+		if (staticsType.equals("1")) {
 			staticsStr = "Consume";
-		}else{
+		} else {
 			staticsStr = "Produce";
 		}
 		String key = goldStr + staticsStr;
 		int num = dateMap.getOrDefault(key, 0);
 		num += goldNum;
 		dateMap.put(key, num);
-		//总计数据也要更新
-		int totalNum = dateMap.getOrDefault("Total"+key, 0);
+		// 总计数据也要更新
+		int totalNum = dateMap.getOrDefault("Total" + key, 0);
 		totalNum += goldNum;
-		dateMap.put("Total"+key, totalNum);
+		dateMap.put("Total" + key, totalNum);
 		PayDayStaticsDB.insertGoldInfo(platformID, hostID, date, dateMap);
 	}
-	
+
 	/**
 	 * 从tblPayDayStatics表中加载昨天的总绑定钻石和非绑定钻石
 	 * 
@@ -231,6 +242,118 @@ public class GoldStatics extends AbstractStaticsModule {
 			DBManager.closeConn(conn);
 		}
 		return totalNumMap;
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private void insertPlatformStatics(String platformID, String hostID, String date, String reason, String goldType,
+			String staticsType, Map<String, String> values) {
+		Map platformResult = FuncUtils.getOrInit(PlatformStatics, platformID);
+		Map hostResult = FuncUtils.getOrInit(platformResult, hostID);
+		Map dateResult = FuncUtils.getOrInit(hostResult, date);
+		Map reasonResult = FuncUtils.getOrInit(dateResult, reason);
+		Map goldTypeResult = FuncUtils.getOrInit(reasonResult, goldType);
+		Map staticsResult = FuncUtils.getOrInit(goldTypeResult, staticsType);
+		int value = Integer.parseInt((String) staticsResult.getOrDefault("Value", "0"));
+		value += Integer.parseInt(values.getOrDefault("Value", "0"));
+		staticsResult.put("Value", Integer.toString(value)); // value值
+		String uidStr = (String) staticsResult.getOrDefault("Uids", "','");
+		String[] uids = StringUtils.split(uidStr, ",");
+		Set<String> uidSet = new HashSet<String>();
+		CollectionUtils.addAll(uidSet, uids);
+		String[] tUids = StringUtils.split(values.getOrDefault("Value", ""), "','");
+		CollectionUtils.addAll(uidSet, tUids);
+		staticsResult.put("Value", StringUtils.join(uidSet, "','"));
+		int consumeNum = Integer.parseInt(values.getOrDefault("consumeNum", "1"));
+		consumeNum += Integer.parseInt((String) staticsResult.getOrDefault("consumeNum", "0"));
+		staticsResult.put("consumeNum", Integer.toString(consumeNum));
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Override
+	public boolean cronExecute() {
+		synchronized (PlatformStatics) {
+			Set<String> hostSet = new HashSet<String>();
+			Iterator<String> pIt = PlatformStatics.keySet().iterator();
+			while (pIt.hasNext()) {
+				String platformID = pIt.next();
+				Map pResult = PlatformStatics.get(platformID);
+				Iterator<String> hIt = pResult.keySet().iterator();
+				while (hIt.hasNext()) {
+					String hostID = hIt.next();
+					hostSet.add(hostID);
+					Map hResult = (Map) pResult.get(hostID);
+					Iterator<String> dIt = hResult.keySet().iterator();
+					while (dIt.hasNext()) {
+						String date = dIt.next();
+						Map dResult = (Map) hResult.get(date);
+						Iterator<String> rIt = dResult.keySet().iterator();
+						while (rIt.hasNext()) {
+							String reason = rIt.next();
+							Map gResult = (Map) dResult.get(reason);
+							Iterator<String> gIt = gResult.keySet().iterator();
+							while (gIt.hasNext()) {
+								String goldType = gIt.next();
+								Map sResult = (Map) gResult.get(goldType);
+								Iterator<String> sIt = sResult.keySet().iterator();
+								while (sIt.hasNext()) {
+									String staticsType = sIt.next();
+									Map<String, String> values = (Map<String, String>) gResult.get(staticsType);
+									GoldDB.batchInsert(platformID, hostID, date, reason, goldType, staticsType, values);
+									updateTotalGold(platformID, hostID, date, goldType, staticsType,
+											Integer.parseInt(values.get("Value")));
+								}
+							}
+						}
+					}
+				}
+			}
+			PlatformStatics = new HashMap(); // 重新赋值
+			// 需要把当天没有数据的服的昨天的总钻石数统计到今天来
+			String today = DateFormatUtils.format(System.currentTimeMillis(), "yyyy-MM-dd");
+			Map<String, String> hostMap = ServerDB.getStaticsServers();
+			Iterator<String> hIt = hostMap.keySet().iterator();
+			while (hIt.hasNext()) {
+				String hostID = hIt.next();
+				if (!hostSet.contains(hostID)) {
+					String platformID = hostMap.get(hostID);
+					staticsTotalGold(platformID, hostID, today);
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * 统计总钻石数
+	 * 
+	 * @param platformID
+	 * @param hostID
+	 * @param date
+	 */
+	private void staticsTotalGold(String platformID, String hostID, String date) {
+		Map<String, Map<String, Integer>> hostTotalMap = DayNumMap.get(hostID);
+		if (hostTotalMap == null) {
+			hostTotalMap = new HashMap<String, Map<String, Integer>>();
+			DayNumMap.put(hostID, hostTotalMap);
+		}
+		Map<String, Integer> dateMap = hostTotalMap.get(date);
+		if (dateMap == null) {
+			String yesterday = DateUtils2.getOverDate(date, -1);
+			Map<String, Integer> yesterdayMap = hostTotalMap.get(yesterday);
+			if (yesterdayMap == null) {
+				yesterdayMap = loadDatePayInfoFromDB(platformID, hostID, yesterday);
+			}
+			dateMap = new HashMap<String, Integer>();
+			dateMap.put("GoldConsume", yesterdayMap.getOrDefault("GoldConsume", 0));
+			dateMap.put("GoldProduce", yesterdayMap.getOrDefault("GoldProduce", 0));
+			dateMap.put("TotalGoldProduce", yesterdayMap.getOrDefault("TotalGoldProduce", 0));
+			dateMap.put("TotalGoldConsume", yesterdayMap.getOrDefault("TotalGoldConsume", 0));
+			dateMap.put("TotalCreditGoldProduce", yesterdayMap.getOrDefault("TotalCreditGoldProduce", 0));
+			dateMap.put("TotalCreditGoldConsume", yesterdayMap.getOrDefault("TotalCreditGoldConsume", 0));
+			dateMap.put("CreditGoldProduce", yesterdayMap.getOrDefault("CreditGoldProduce", 0));
+			dateMap.put("CreditGoldConsume", yesterdayMap.getOrDefault("CreditGoldConsume", 0));
+			PayDayStaticsDB.insertGoldInfo(platformID, hostID, date, dateMap);
+		}
 	}
 
 }

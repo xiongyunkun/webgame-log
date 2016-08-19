@@ -10,14 +10,17 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateFormatUtils;
 
 import com.yuhe.szml.db.DBManager;
+import com.yuhe.szml.db.ServerDB;
 import com.yuhe.szml.db.log.CommonDB;
 import com.yuhe.szml.db.statics.PayZoneDB;
 import com.yuhe.szml.utils.DateUtils2;
 
 public class PayZone extends AbstractStaticsModule {
 	private Map<String, Map<String, Integer>> HostZoneMap = new HashMap<String, Map<String, Integer>>();
+	private Map<String, String> HostUpdateMap = new HashMap<String, String>();
 	private static final Map<String, int[]> ZONE_MAP = new HashMap<String, int[]>() {
 		private static final long serialVersionUID = 1L;
 
@@ -88,6 +91,7 @@ public class PayZone extends AbstractStaticsModule {
 				String[] times = StringUtils.split(time, " ");
 				String today = times[0];
 				PayZoneDB.insert(platformID, hostID, today, zoneMap);
+				HostUpdateMap.put(hostID, today);
 			}
 		}
 
@@ -191,6 +195,33 @@ public class PayZone extends AbstractStaticsModule {
 
 		}
 		return zoneID;
+	}
+
+	@Override
+	public boolean cronExecute() {
+		synchronized (HostUpdateMap) {
+			String today = DateFormatUtils.format(System.currentTimeMillis(), "yyyy-MM-dd");
+			Map<String, String> hostMap = ServerDB.getStaticsServers();
+			Iterator<String> hIt = hostMap.keySet().iterator();
+			while (hIt.hasNext()) {
+				String hostID = hIt.next();
+				String platformID = hostMap.get(hostID);
+				String updateTime = HostUpdateMap.get(hostID);
+				if (updateTime == null) {
+					// 从数据库中获取数据
+					Map<String, Integer> zoneMap = getZoneMapFromDB(platformID, hostID);
+					HostZoneMap.put(hostID, zoneMap);
+					HostUpdateMap.put(hostID, today);
+					PayZoneDB.insert(platformID, hostID, today, zoneMap);
+				} else if (!today.equals(updateTime)) {
+					// 把昨天的数据拿过来就行
+					Map<String, Integer> zoneMap = HostZoneMap.get(hostID);
+					HostUpdateMap.put(hostID, today);
+					PayZoneDB.insert(platformID, hostID, today, zoneMap);
+				}
+			}
+		}
+		return true;
 	}
 
 }

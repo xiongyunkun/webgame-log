@@ -12,8 +12,11 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateFormatUtils;
+import org.apache.log4j.Logger;
 
 import com.yuhe.szml.db.DBManager;
+import com.yuhe.szml.db.ServerDB;
 import com.yuhe.szml.db.log.CommonDB;
 import com.yuhe.szml.db.statics.HistoryRegDB;
 import com.yuhe.szml.utils.DateUtils2;
@@ -22,9 +25,9 @@ public class HistoryReg extends AbstractStaticsModule {
 	// 记录当天服的注册人数信息：当天注册数，男生注册数，女生注册数，总注册数
 	// 数据格式：<HostID, <date, <Type, Number>>>
 	private Map<String, Map<String, Map<String, Integer>>> StaticsNumMap = new HashMap<String, Map<String, Map<String, Integer>>>();
-
+	public static Logger logger = Logger.getLogger(HistoryReg.class);
 	@Override
-	public boolean execute(Map<String, List<Map<String, String>>> platformResults) {
+	public synchronized boolean execute(Map<String, List<Map<String, String>>> platformResults) {
 		Set<String> flagSet = new HashSet<String>(); // 标志位，用来记录到底哪些hostid哪些date需要更新
 		Iterator<String> pIt = platformResults.keySet().iterator();
 		while (pIt.hasNext()) {
@@ -78,8 +81,13 @@ public class HistoryReg extends AbstractStaticsModule {
 		for (String str : flagSet) {
 			String[] strs = StringUtils.split(str, ";");
 			if (strs.length == 3) {
-				Map<String, Integer> numMap = StaticsNumMap.get(strs[1]).get(strs[2]);
-				HistoryRegDB.batchInsert(strs[0], strs[1], strs[2], numMap);
+				Map<String, Map<String, Integer>> hostNumMap = StaticsNumMap.get(strs[1]);
+				if(hostNumMap != null){
+					Map<String, Integer> numMap = hostNumMap.get(strs[2]);
+					if(numMap != null){
+						HistoryRegDB.batchInsert(strs[0], strs[1], strs[2], numMap);
+					}
+				}
 			}
 		}
 		return true;
@@ -103,7 +111,6 @@ public class HistoryReg extends AbstractStaticsModule {
 		int female = 0;
 		int totalRegNum = 0;
 		String tblName = platformID + "_log.tblAddPlayerLog_" + date.replace("-", "");
-		;
 		List<String> options = new ArrayList<String>();
 		options.add("HostID = '" + hostID + "'");
 		options.add("Time >= '" + date + " 00:00:00'");
@@ -144,6 +151,35 @@ public class HistoryReg extends AbstractStaticsModule {
 		dateResult.put("TotalRegNum", totalRegNum);
 		hostResults.put(date, dateResult);
 		return hostResults;
+	}
+
+	/**
+	 * 定时写入数据库以及定时统计没有日志数据的服
+	 */
+	@Override
+	public synchronized boolean cronExecute() {
+		String today = DateFormatUtils.format(System.currentTimeMillis(), "yyyy-MM-dd");
+		Map<String, String> hostMap = ServerDB.getStaticsServers();
+		Iterator<String> hIt = hostMap.keySet().iterator();
+		while (hIt.hasNext()) {
+			String hostID = hIt.next();
+			String platformID = hostMap.get(hostID);
+			Map<String, Map<String, Integer>> hostResults = StaticsNumMap.get(hostID);
+			if (hostResults == null) {
+				hostResults = new HashMap<String, Map<String, Integer>>();
+
+				StaticsNumMap.put(hostID, hostResults);
+			}
+			Map<String, Integer> dateResult = hostResults.get(today);
+			if (dateResult == null) {
+				String endTime = DateFormatUtils.format(System.currentTimeMillis(), "yyyy-MM-dd HH:mm:ss");
+				hostResults = loadFromDB(platformID, hostID, today, endTime);
+				StaticsNumMap.put(hostID, hostResults);
+				dateResult = hostResults.get(today);
+				HistoryRegDB.batchInsert(platformID, hostID, today, dateResult);// 记录入库
+			}
+		}
+		return true;
 	}
 
 }

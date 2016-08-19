@@ -94,7 +94,7 @@ public class OnlineTime extends AbstractStaticsModule {
 						int userType = uIt.next();
 						Map<String, Integer> timeMap = userResults.get(userType);
 						// 计算总登陆人数
-						Set<String> loginUids = Retention.getLoginUids(hostID, date);
+						Set<String> loginUids = Retention.getLoginUids(platformID, hostID, date);
 						OnlineTimeDB.insert(platformID, hostID, date, userType, loginUids.size(), timeMap);
 					}
 				}
@@ -140,7 +140,7 @@ public class OnlineTime extends AbstractStaticsModule {
 		int orgTime = dateResults.getOrDefault(uid, 0);
 		int totalTime = orgTime + onlineTime;
 		dateResults.put(uid, totalTime);
-		Set<String> regUids = Retention.getRegUids(hostID, date);
+		Set<String> regUids = Retention.getRegUids(platformID, hostID, date);
 		int userType = 1; // 默认都是老用户
 		if (regUids.contains(uid)) {
 			userType = 2;
@@ -173,7 +173,7 @@ public class OnlineTime extends AbstractStaticsModule {
 				int orgOnTime = onlineTimes.getOrDefault(uid, 0);
 				int totalOnTime = onTime + orgOnTime;
 				onlineTimes.put(uid, totalOnTime);
-				Set<String> regUids = Retention.getRegUids(hostID, date);
+				Set<String> regUids = Retention.getRegUids(platformID, hostID, date);
 				int userType = 1; // 默认都是老用户
 				if (regUids.contains(uid)) {
 					userType = 2;
@@ -264,6 +264,12 @@ public class OnlineTime extends AbstractStaticsModule {
 
 		}
 		return zoneID;
+	}
+
+	@Override
+	public boolean cronExecute() {
+		// TODO Auto-generated method stub
+		return false;
 	}
 
 }

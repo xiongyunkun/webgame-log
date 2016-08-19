@@ -13,10 +13,13 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateFormatUtils;
 
 import com.yuhe.szml.db.DBManager;
+import com.yuhe.szml.db.ServerDB;
 import com.yuhe.szml.db.log.CommonDB;
 import com.yuhe.szml.db.statics.PayDayStaticsDB;
+import com.yuhe.szml.utils.DateUtils2;
 
 /**
  * 充值区间和服充值统计
@@ -26,9 +29,9 @@ import com.yuhe.szml.db.statics.PayDayStaticsDB;
  */
 public class PayDay extends AbstractStaticsModule {
 	// 记录昨天和今天的充值总额和充值钻石数量
-	//格式：<HostID, <Date, <StaticsType, Number>>>
+	// 格式：<HostID, <Date, <StaticsType, Number>>>
 	private Map<String, Map<String, Map<String, String>>> DayNumMap = new HashMap<String, Map<String, Map<String, String>>>();
-	
+
 	@Override
 	public boolean execute(Map<String, List<Map<String, String>>> platformResults) {
 		Iterator<String> pIt = platformResults.keySet().iterator();
@@ -54,20 +57,31 @@ public class PayDay extends AbstractStaticsModule {
 					Map<String, String> dateMap = hostTotalMap.get(date);
 					if (dateMap == null) {
 						dateMap = loadDatePayInfoFromDB(platformID, hostID, date);
+						// 充值人数Uid列表也要加上
+						Set<String> uids = loadPayUserListPayFromDB(platformID, hostID, date);
+						dateMap.put("PayUserUids", StringUtils.join(uids, ",")); // 充值玩家uid列表
 						hostTotalMap.put(date, dateMap);
 					}
 					int totalPayGold = Integer.parseInt(dateResult.get("TotalPayGold"))
 							+ Integer.parseInt(dateMap.getOrDefault("TotalPayGold", "0"));
 					float totalCashNum = Float.parseFloat(dateResult.get("TotalCashNum"))
 							+ Float.parseFloat(dateMap.getOrDefault("TotalCashNum", "0"));
+					// 还需要统计总人数
+					String[] orgUids = StringUtils.split(dateMap.getOrDefault("PayUserUids", ""), ",");
+					Set<String> uidSet = new HashSet<String>(Arrays.asList(orgUids));
+					String[] uids = StringUtils.split(dateResult.get("PayUserUids"), ",");
+					uidSet.addAll(Arrays.asList(uids));
+
 					dateResult.put("TotalPayGold", Integer.toString(totalPayGold));
 					dateResult.put("TotalCashNum", Float.toString(totalCashNum));
+					dateResult.put("PayUserNum", Integer.toString(uidSet.size()));
 					// 同时也要更新DayNumMap便于下次计算
 					dateMap.put("TotalPayGold", Integer.toString(totalPayGold));
 					dateMap.put("TotalCashNum", Float.toString(totalCashNum));
+					dateMap.put("PayUserUids", StringUtils.join(uidSet, ","));
 					// 记录入库
 					PayDayStaticsDB.insertPayInfo(platformID, hostID, date, dateResult);
-					
+
 				}
 			}
 		}
@@ -109,18 +123,11 @@ public class PayDay extends AbstractStaticsModule {
 			datePayResult.put("PayGold", Integer.toString(totalGold)); // 充值所获钻石
 			int payNum = Integer.parseInt(datePayResult.getOrDefault("PayNum", "0"));
 			datePayResult.put("PayNum", Integer.toString(payNum + 1)); // 充值次数
-			// 获得充值人数，还要考虑第一次启动的时候的情况，需要从数据库中加载出数据出来
-			String payUserNum = datePayResult.get("PayUserNum");
-			if (payUserNum == null) {
-				Set<String> uids = loadPayUserListPayFromDB(platformID, hostID, date);
-				datePayResult.put("PayUserUids", StringUtils.join(uids, ",")); // 充值玩家uid列表
-				datePayResult.put("PayUserNum", Integer.toString(uids.size())); // 充值玩家人数
-			}
-			List<String> payUserUids = Arrays.asList(StringUtils.split(datePayResult.get("PayUserUids"), ","));
+			List<String> payUserUids = Arrays
+					.asList(StringUtils.split(datePayResult.getOrDefault("PayUserUids", ""), ","));
 			if (!payUserUids.contains(uid)) {
 				payUserUids.add(uid);
 				datePayResult.put("PayUserUids", StringUtils.join(payUserUids, ","));// 充值玩家uid列表
-				datePayResult.put("PayUserNum", Integer.toString(payUserUids.size()));// 充值玩家人数
 			}
 			// 判断该玩家是否是首抽
 			Map<String, String> firstPayMap = loadUserPayFormDB(platformID, hostID, uid);
@@ -228,5 +235,49 @@ public class PayDay extends AbstractStaticsModule {
 		return totalNumMap;
 	}
 
+	@Override
+	public boolean cronExecute() {
+		synchronized (DayNumMap) {
+			String today = DateFormatUtils.format(System.currentTimeMillis(), "yyyy-MM-dd");
+			Map<String, String> hostMap = ServerDB.getStaticsServers();
+			Iterator<String> hIt = hostMap.keySet().iterator();
+			while (hIt.hasNext()) {
+				String hostID = hIt.next();
+				String platformID = hostMap.get(hostID);
+				Map<String, Map<String, String>> hostTotalMap = DayNumMap.get(hostID);
+				if (hostTotalMap == null) {
+					hostTotalMap = new HashMap<String, Map<String, String>>();
+					DayNumMap.put(hostID, hostTotalMap);
+				}
+				Map<String, String> todayTotalMap = hostTotalMap.get(today);
+				if (todayTotalMap == null) {
+					/*
+					 * 先判断昨天有没有数据，昨天如果有数据就用昨天的充值总额，但是充值uid为空
+					 * 如果昨天没有数据，则需要从数据库中获取数据出来
+					 */
+					todayTotalMap = new HashMap<String, String>();
+					String yesterday = DateUtils2.getOverDate(today, -1);
+					Map<String, String> yesterdayTotalMap = hostTotalMap.get(yesterday);
+					if (yesterdayTotalMap == null) {
+						todayTotalMap = loadDatePayInfoFromDB(platformID, hostID, today);
+						// 充值人数Uid列表也要加上
+						Set<String> uids = loadPayUserListPayFromDB(platformID, hostID, today);
+						todayTotalMap.put("PayUserUids", StringUtils.join(uids, ",")); // 充值玩家uid列表
+						todayTotalMap.put("PayUserNum", Integer.toString(uids.size())); // 人数也为空
+					} else {
+						todayTotalMap.put("TotalPayGold", yesterdayTotalMap.getOrDefault("TotalPayGold", "0"));
+						todayTotalMap.put("TotalCashNum", yesterdayTotalMap.getOrDefault("TotalCashNum", "0"));
+						todayTotalMap.put("PayUserUids", ""); // 充值名单为空
+						todayTotalMap.put("PayUserNum", "0"); // 人数也为空
+					}
+					hostTotalMap.put(today, todayTotalMap);
+					// 记录入库
+					PayDayStaticsDB.insertPayInfo(platformID, hostID, today, todayTotalMap);
+				}
+
+			}
+		}
+		return true;
+	}
 
 }

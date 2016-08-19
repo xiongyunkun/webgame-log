@@ -147,7 +147,8 @@ public class DateUtils2 {
 	}
 	
 	public static void main(String[] args){
-		String time = "2016-06-28 15:25:00";
-		System.out.println(GetTimestamp(time));
+//		String time = "2016-06-28 15:25:00";
+		System.out.println(DateFormatUtils.format(System.currentTimeMillis(), TimeFormat));
+//		System.out.println(GetTimestamp(time));
 	}
 }
